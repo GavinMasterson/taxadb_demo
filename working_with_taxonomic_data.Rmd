@@ -1,0 +1,167 @@
+---
+title: "Taxonomic Divergence"
+author: "Gavin Masterson"
+date: "22 March 2020"
+output: 
+  html_document:
+  keep_md: true
+---
+
+## Setting the scene
+
+In a [related blog post]() on the Global Invasive Species Database (GISD), I demonstrated the use of a webscraper and #rstats to take a quick look at the topic of invasive herpetofauna (or the #HerpMafia, as I dubbed them). During the data import and analysis, I encountered several issues that are common in taxonomic databases. Firstly, some species had missing values ("NA") for one or more database variables. In my case, the missing values were not difficult to determine and input manually, but what if I had been processing a species list of several hundred species? How would I approach the problem of taxonomic verification in an automated manner? Secondly, I discovered that species in my list of invasive herpetofauna had undergone taxonomic reassignment, either at species, genus or even family level. How should a biologist deal with this issue when communicating the results of an analysis or data visualisation such as mine? Thirdly, there is additional uncertainty in taxonomic status when dealing with sub-populations of a species such as invasive populations. Invasive populations of a species that is later revised, split or lumped with another species using an analysis conducted in the species' native range does not necessarily directly translate to a revised taxonomic status for the invasive population. These issues are the topic of this post.
+
+## Reality check
+
+In an **ideal world**, the GISD database (or whichever database you prefer) is updated as soon as taxonomic changes are accepted, and the search results can be treated as authoritative. Realistically, for any database with  vast number of taxa to consider it is unreasonable to expect the taxonomy of all species to be up-to-date and error-free. As I discovered in my invasive herpetofauna investigation, for some species the GISD was simultaneously ahead of and behind the other databases regarding taxonomic assignments and classifications. For example, for *Norops grahami* the GISD appears to accept the generic reassignment from *Anolis*, while the [Reptile Database](http://www.reptile-database.org/) notes the change on it's *N. grahami* [page](http://reptile-database.reptarium.cz/species?genus=Anolis&species=grahami&search_param=%28%28search%3D%27anolis+grahami%27%29%29), but has not reassigned it to *Norops* in their database. For the same species though, the Reptile Database has the Family assignment specified as Dactyloidae whereas the GISD still assigns it to the Polychrotidae. Deciding what to do in situations like this is always tricky, but a simple best case scenario is to be able to present these uncertainties to the readers of your research/communication. Thankfully I have learned about two R packages that can be used to query, and then compare, the world's major taxonomic databases from the comfort of your command line.
+
+## Introducing {taxadb}
+
+We install the `taxadb` packages as well as the `tidyverse` and our trusty `dplyr` for managing the post-query manipulations of the dataframes. Lastly I have used the `kableExtra` package to present tabulated data.
+
+```{r setup, warning = FALSE, message = FALSE}
+library(taxadb)
+library(tidyverse)
+library(dplyr)
+library(kableExtra)
+```
+
+### {taxadb}
+
+The `taxadb` package installs a taxonomic database of your choice *on your workstation*. This local databaseis installed from `taxadb`, which is periodically updated from the relevant online database APIs. For a thorough understanding of the data sources used by `taxadb`, I encourage you to read the documentation found at the [rOpenSci taxadb page](https://docs.ropensci.org/taxadb/articles/data-sources.html). The TL:DR is that you should not simply merge information from two different taxonomic data sources. The point is made in this paragraph:
+
+> "**Please Note**: `taxadb` advises against uncritically combining data from multiple providers. The same name is frequently used by different providers to mean different things – some providers consider two names synonyms that other providers consider distinct species. It is crucial to recognize that taxonomic name providers represent independent taxonomic theories, and not merely additional observations of the same immutable reality (Franz & Sterner (2018)). You cannot just merge two databases of taxonomic names like you can two databases of, say, plant traits to get a bigger and more complete sample, because the former can contain meaningful contradictions."
+
+The data sources used by `taxadb` are updated on an annual basis, and this can be checked using the `available_versions` function. The first element `"2019"` tells us the last time the data sources were updated by `taxadb`. The `"dwc"` indicates that all data sources are formatted according to the [Darwin Core standard](https://dwc.tdwg.org/).
+
+```{r taxadb}
+available_versions()
+```
+
+#### A quick comparison of herpetofaunal species in GISD and ITIS 
+
+In a related project, I queried the GISD database to ascertain the names of all herpetofaunal species that have established non-native or invasive populations to date. Let's import the file downloaded from the GISD and compare it to the herpetofauna listed in the ITIS database. First we import the `.csv` datafile, do some data preparation. Second we create a local ITIS database using td_create. Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a `left_join` where we tell the function that `Species` in GISD is the same variable as `scientificName` in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.
+
+```{r merge, message = FALSE, warning = FALSE}
+
+GISD_query <- read_delim("amrep_gisd.csv", trim_ws = TRUE, delim = ";") %>%
+              .[,-8] %>% 
+              separate(Species, c("Genus", "Specific_Epithet", "Infraspecific_Epithet"), sep = " ", remove = FALSE) 
+
+td_create("itis")
+database <- filter_rank(c("Amphibia", "Reptilia"), "class")
+
+db_check <- GISD_query %>% 
+                left_join(database, by = c("Species" = "scientificName")) %>%
+                select(species_GISD = Species,
+                       vernacularName_ITIS = vernacularName,
+                       order_GISD = Order, order_ITIS = order,
+                       family_GISD = Family, family_ITIS = family,
+                       taxonomicStatus_ITIS = taxonomicStatus,
+                       acceptedNameUsageID) 
+                
+db_check %>%  select(-vernacularName_ITIS) %>% 
+              kable() %>% 
+              kable_styling() %>% 
+              column_spec(column = 1, italic = TRUE, width = "8cm")
+
+```
+
+We are interested in the species in the GISD that have no match in the ITIS database. Species that have no match will have missing values for all the *_ITIS variables, so I chose taxonomicStatus_ITIS. The output shows us that there are four species in the GISD that have no match in the ITIS database.
+
+```{r investigate}
+db_check[which(is.na(db_check$taxonomicStatus_ITIS) == TRUE),] %>% 
+  select(-vernacularName_ITIS, -acceptedNameUsageID) %>% 
+  kable() %>% 
+  kable_styling() %>% 
+  column_spec(column = 1, italic = TRUE, width = "6cm")
+```
+
+I am also interested in species that are synonyms and not currently the accepted scientific name for the species. Any species identified by a synonym in the GISD merits further investigation to determine if the most recent taxonomic assignment gave due consideration to the status of the alien/invasive population.
+
+Using the code below, I compare the name from our GISD list with the accepted name in ITIS database. The code allows us to determine the level at which the reassignment occurred. A reassignment at genus level might mean that less attention is needed as compared to a change in the specific epithet. The work doesn't end when you identify differences using this comparison but it does get a useful pointer.
+
+```{r investigate2}
+db_check[which(db_check$taxonomicStatus_ITIS == "synonym"),] %>% 
+  select(-vernacularName_ITIS) %>% 
+  left_join(.,database, by = "acceptedNameUsageID") %>% 
+  filter(taxonomicStatus == "accepted") %>% 
+  select(species_GISD,
+         acceptedName_ITIS = scientificName,
+         acceptedNameUsageID
+         ) %>% 
+  kable() %>% 
+  kable_styling() %>% 
+  column_spec(column = 1, italic = TRUE)
+```
+
+The `acceptedNameUsageID` number is a way for us to backreference the spcies to the ITIS database to extract all the synonyms for a single species. Below I demonstrate the process for *Elaphe guttata* (Eastern Corn Snake), which shows us that the ITIS database recognises *Pantherophis guttatus* as the accepted name and the three other classifications as synonyms. You can also see that the `acceptedNameUsageID`is the same for all names of this species while the `taxonID` is different for each.
+
+```{r filter}
+filter(database, acceptedNameUsageID == "ITIS:1081818") %>% 
+  select(scientificName,
+         taxonRank,
+         taxonomicStatus,
+         acceptedNameUsageID,
+         taxonID) %>% 
+  kable() %>% 
+  kable_styling() %>% 
+  column_spec(column = 1, italic = TRUE, width = "5cm")
+```
+
+# Out with the old...
+
+The last thing I want to do is compare a list of species names from a reptile survey in 2006 with the current taxonomy of the species. I know for a fact that several names have changed over the past 14 years, so let's see how easy it is to determine the new accepted species names. 
+
+```{r rep_survey, message = FALSE}
+data_2006 <- read_csv("rep_survey.csv")
+
+species_2006 <- filter_name(data_2006[[1]]) %>% 
+                select(reptiles_2006 = input,
+                       acceptedNameUsageID,
+                       Genus_ITIS = genus,
+                       specificEpithet_ITIS = specificEpithet,
+                       taxonomicStatus_ITIS = taxonomicStatus,
+                       vernacularName_ITIS = vernacularName)
+```
+
+The output of our query provides food for thought. Five of the 20 species find no matches in the ITIS database. Eleven names are still the accepted name for the species concerned and two names are synonyms. We could use our code from above to get the accepted name, but we can also see that the `filter_name` function returns a `genus` and `specificEpithet` variable from the ITIS database. In the case of synonyms, these two variables hold the accepted name for the species.
+
+```{r syn_2006}
+species_2006 %>% 
+  filter(taxonomicStatus_ITIS == "synonym") %>% 
+  select(-vernacularName_ITIS) %>% 
+  kable() %>% 
+  kable_styling() %>% 
+  column_spec(column = 1, italic = TRUE)
+```
+
+Two of the seven species for which we have no genus or specific epithet matches do have ITIS ID numbers but they have missing taxonomic hierarchy information. While we could use their ID numbers to get further information, I decided to use the `fuzzy_filter` function to search for matching names at different hierarchies. For *Agama aculeata distanti*, *Agama atra atra*, *Bitis arietans arietans*, we see that taxonomic information is not missing when we search at the species level but is missing for each subspecies level. For *Agama atra*, the ITIS databse recognises no subspecies, so our trinomial designation finds no ID match.
+
+```{r itis_id}
+input <- species_2006 %>%  
+          filter(is.na(Genus_ITIS) == TRUE) %>% 
+          separate(reptiles_2006, c("Genus", "Specific_Epithet", "Subspecific_Epithet"),
+                               sep = " ", 
+                               remove = FALSE) %>% 
+          unite(c(Genus, Specific_Epithet), 
+                col = "binomial",
+                sep = " ",
+                remove = FALSE)
+
+fuzzy_filter(c(input$binomial), match = "contains") %>% 
+  select(taxonID,
+         scientificName,
+         taxonRank,
+         taxonomicStatus,
+         class) %>% 
+  arrange()
+```
+
+Using the `input` object created above we can search for fuzzy matches of the genus name or specific epithet. It is interesting to see the outputs, but I will leave that to anyone interested in testing their new skills further. Feel free to contact me with any questions or feedback.
+
+# Taxonomic issues in data science projects
+
+Taxonomic assignment within the 'Tree of Life' is a neverending process of hypothesis generation and revision. The technology for genomic sequencing and analysis has been available for more than 40 years, and yet phylogenetic revisions of reptiles and amphibians are being published annually. Processing these revisions places a heavy burden on database managers and they do an often thankless task with great dedication. The nett result is that each database varies from others in unpredictable ways. If this post achieves anything, I hope it gives you a deep appreciation for the fact that we are learning new facts about the interrelatedness of all organisms with every phylogenetic analysis conducted. Secondly, I want to highlight the incredible work being done by all taxonomic database managers in their efforts to curate the relevant taxonomic changes (read: taxonomic hypotheses) on an ongoing basis. Their work makes my biological research infinitely easier. A huge thank you to you all!
+
+The last thank you goes to the developers of the `taxadb` package - Carl Boettiger (Author, maintainer); Kari Norman (Author); Jorrit Poelen (Author); Scott Chamberlain (Author); Noam Ross (Contributor). I am always blown away by the R community and its collaborative, opensource practices. The openSci project is a brilliant example of this philosophy. Thank you so much.
