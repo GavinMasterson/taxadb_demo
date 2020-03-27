@@ -158,7 +158,7 @@ fuzzy_filter(c(input$binomial), match = "contains") %>%
   arrange()
 ```
 
-Using the `input` object created above we can search for fuzzy matches of the genus name or specific epithet. It is interesting to see the outputs, but I will leave that to anyone interested in testing their new skills further. Feel free to contact me with any questions or feedback.
+Using the `input` object created above we can search for fuzzy matches of the genus name or specific epithet. It is interesting to see the outputs, but I will leave that to anyone interested in testing their new skills further.
 
 # Taxonomic issues in data science projects
 
