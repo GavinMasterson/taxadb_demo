@@ -9,21 +9,21 @@ output:
 
 ## Setting the scene
 
-In a project using the Global Invasive Species Database (GISD), I encountered several issues that are common when working with taxonomic databases. After the data import process, I observed that some species had missing values ("NA") for one or more database variables. In my example, the missing values were not difficult to determine and input manually, but what if I had been processing a species list of several hundred species? How would I approach the problem of taxonomic verification in an automated, reproducible manner? 
+During a hobby project using the Global Invasive Species Database (GISD), I encountered several issues that are common when working with taxonomic databases. Having searched the database and imported the data, I noticed that some species had missing values ("NA") for one or more variables. The missing values for the < 10 species were not difficult to determine, but what if I had been processing a species list of several hundred species? How would I approach the problem of taxonomic verification in an automated, reproducible manner? 
 
-Secondly, I discovered that species in my list of invasive herpetofauna had undergone taxonomic reassignment, either at species, genus or even family level. How should a biologist deal with this issue when communicating the results of an analysis or data visualisation such as mine? These issues are the topic of this post.
+The second issue was that species in my list of invasive herpetofauna had undergone taxonomic reassignment, either at species, genus or even family level. How should a biologist deal with this issue when communicating the results of an analysis or data visualisation such as mine? These issues are the topic of this post.
 
 ## Reality check
 
-In an **ideal world**, the GISD database (or whichever database you prefer) is updated as soon as taxonomic changes are accepted, and the search results can be treated as authoritative. Realistically, for any database with  vast number of taxa to consider it is unreasonable to expect the taxonomy of all species to be up-to-date and error-free. As I discovered in my invasive herpetofauna investigation, for some species the GISD was simultaneously ahead of and behind the other databases regarding taxonomic assignments and classifications. 
+In an **ideal world**, the GISD database (or whichever database you prefer) is updated as soon as taxonomic changes are accepted, and the search results can be treated as authoritative. Realistically, for any database with  vast number of taxa to consider it is unreasonable to expect the taxonomy of all species to be up-to-date and error-free. As I discovered in my invasive herpetofauna investigation, for some species the GISD was simultaneously ahead of and behind the other databases regarding taxonomic assignments and classifications.
 
-For example, for *Norops grahami* the GISD appears to accept the generic reassignment from *Anolis*, while the [Reptile Database](http://www.reptile-database.org/) notes the change on it's *N. grahami* [page](http://reptile-database.reptarium.cz/species?genus=Anolis&species=grahami&search_param=%28%28search%3D%27anolis+grahami%27%29%29), but has not reassigned it to *Norops* in their database. For the same species though, the Reptile Database has the Family assignment specified as Dactyloidae whereas the GISD still assigns it to the Polychrotidae. 
+For example, for *Norops grahami* the GISD appears to accept the generic reassignment from *Anolis*, while the [Reptile Database](http://www.reptile-database.org/) notes the change on it's *N. grahami* [page](http://reptile-database.reptarium.cz/species?genus=Anolis&species=grahami&search_param=%28%28search%3D%27anolis+grahami%27%29%29), but has not reassigned it to *Norops* in their database yet. For the same species though, the Reptile Database has the family assignment specified as Dactyloidae whereas the GISD still assigns it to the Polychrotidae. So for the genus, the GISD is ahead, but behind for the family.
 
-Deciding what to do in situations like this is always tricky, but a simple best case scenario is to be able to present these uncertainties to the readers of your research/communication. Thankfully there is an R package that can be used to query the world's major taxonomic databases from the comfort of your command line.
+Deciding what to do in situations like this is always tricky, but a simple solution is to be able to present these uncertainties to the readers of your research/communication. Thankfully there is an R package that can be used to query the world's major taxonomic databases from the comfort of your command line.
 
 ## Introducing {taxadb}
 
-We install the `taxadb` packages as well as the `tidyverse` and our trusty `dplyr` for managing the post-query manipulations of the dataframes. Lastly I have used the `kableExtra` package to present tabulated data.
+We install the `taxadb` packages as well as the `tidyverse` and our trusty `dplyr` for managing the post-query manipulations of the dataframes. Lastly I have used the `kableExtra` package to present the tabulated taxonomic data.
 
 ```{r setup, warning = FALSE, message = FALSE}
 library(taxadb)
@@ -46,7 +46,7 @@ available_versions()
 
 #### A quick comparison of herpetofaunal species in GISD and ITIS 
 
-In a related project, I queried the GISD database to ascertain the names of all herpetofaunal species that have established non-native or invasive populations to date. Let's import the file downloaded from the GISD and compare it to the herpetofauna listed in the ITIS database. First we import the `.csv` datafile, do some data preparation. 
+In a related project, I queried the GISD database to ascertain the names of all herpetofaunal species that have established non-native or invasive populations to date. Let's import the file downloaded from the GISD and compare it to the herpetofauna listed in the ITIS database. First we import the `.csv` datafile, do some data preparation.
 
 Second we create a local ITIS database using td_create. Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a `left_join` where we tell the function that `Species` in GISD is the same variable as `scientificName` in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.
 
@@ -54,7 +54,10 @@ Second we create a local ITIS database using td_create. Third we extract all amp
 
 GISD_query <- read_delim("amrep_gisd.csv", trim_ws = TRUE, delim = ";") %>%
               .[,-8] %>% 
-              separate(Species, c("Genus", "Specific_Epithet", "Infraspecific_Epithet"), sep = " ", remove = FALSE) 
+              separate(Species, c("Genus", 
+                                  "Specific_Epithet", 
+                                  "Infraspecific_Epithet"), 
+                       sep = " ", remove = FALSE) 
 
 td_create("itis")
 database <- filter_rank(c("Amphibia", "Reptilia"), "class")
@@ -91,7 +94,7 @@ db_check[which(is.na(db_check$taxonomicStatus_ITIS) == TRUE),] %>%
   column_spec(column = 1, italic = TRUE, width = "6cm")
 ```
 
-I am also interested in species that are synonyms and not currently the accepted scientific name for the species. Any species identified by a synonym in the GISD merits further investigation to determine if the most recent taxonomic assignment gave due consideration to the status of the alien/invasive population.
+I am also interested in names that are synonyms and not currently the accepted scientific name for the species. Any species identified by a synonym in the GISD merits further investigation to determine if the most recent taxonomic assignment gave due consideration to the status of the alien/invasive population.
 
 Using the code below, I compare the name from our GISD list with the accepted name in ITIS database. The code allows us to determine the level at which the reassignment occurred. A reassignment at genus level might mean that less attention is needed as compared to a change in the specific epithet. The work doesn't end when you identify differences using this comparison but it does get a useful pointer.
 
@@ -125,7 +128,7 @@ filter(database, acceptedNameUsageID == "ITIS:1081818") %>%
 
 # Out with the old...
 
-The last thing I want to do with `taxadb` is compare a list of species names from a reptile survey in 2006 with the current taxonomy of the species. I know for a fact that several names have changed over the past 14 years, so let's see how easy it is to determine the new accepted species names.
+The last demo I want to do with `taxadb` is compare a list of species names from a reptile survey in 2006 with the current taxonomy of the species. I know for a fact that several names have changed over the past 14 years, so let's see how easy it is to determine the new accepted species names.
 
 ```{r rep_survey, message = FALSE}
 data_2006 <- read_csv("rep_survey.csv")
@@ -150,7 +153,7 @@ species_2006 %>%
   column_spec(column = 1, italic = TRUE)
 ```
 
-Two of the seven species for which we have no genus or specific epithet matches do have ITIS ID numbers but they have missing taxonomic hierarchy information. While we could use their ID numbers to get further information, I decided to use the `fuzzy_filter` function to search for matching names at different hierarchies. For *Agama aculeata distanti*, *Agama atra atra*, *Bitis arietans arietans*, we see that taxonomic information is not missing when we search at the species level but is missing for each subspecies level. For *Agama atra*, the ITIS databse recognises no subspecies, so our trinomial designation finds no ID match.
+Two of the seven species for which we have no genus or specific epithet matches do have ITIS ID numbers but they have missing taxonomic hierarchy information. While we could use their ID numbers to get further information, here I will use the `fuzzy_filter` function to search for matching names at different hierarchies. For *Agama aculeata distanti*, *Agama atra atra*, *Bitis arietans arietans*, we see that taxonomic information is not missing when we search at the species level but is missing for each subspecies level. For *Agama atra*, the ITIS databse recognises no subspecies, so our trinomial designation finds no ID match.
 
 ```{r itis_id, warning = FALSE}
 input <- species_2006 %>%  
@@ -169,13 +172,29 @@ fuzzy_filter(c(input$binomial), match = "contains") %>%
          taxonRank,
          taxonomicStatus,
          class) %>%
+  mutate(
+    class = if_else(class == "Reptilia",
+                  cell_spec(class, "html", 
+                            background = "Dodgerblue", 
+                            color = "white", 
+                            bold = T),
+                  cell_spec(class, "html", 
+                            color = "black")),
+    taxonRank = if_else(taxonRank == "subspecies",
+                  cell_spec(taxonRank, "html", 
+                            background = "green", 
+                            color = "white", 
+                            bold = T),
+                  cell_spec(taxonRank, "html", 
+                            color = "black"))
+    ) %>% 
   arrange(by_group = scientificName) %>% 
-  kable() %>% 
+  kable("html", escape = F) %>% 
   kable_styling(bootstrap_options = c("striped", "hover")) %>% 
   column_spec(column = 2, italic = TRUE)
 ```
 
-Using the `input` object created above we can search for fuzzy matches of the genus name or specific epithet. It is interesting to see the outputs, but I will leave that to anyone interested in testing their new skills further. 
+Using the `input` object created above we could search for fuzzy matches of the genus name or specific epithet to get a more detailed understanding of the taxonomic situation in each case. It is interesting to see the outputs, just change `input$binomial` to `input$Genus` etc. You will see that matches from any class are returned, so you can improve the returned table using a call such as `filter(class == "Reptilia)`, but remember that you will also lose all "NA" columns this way.
 
 # Taxonomic issues in data science projects
 
