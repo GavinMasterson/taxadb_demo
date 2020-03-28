@@ -1,10 +1,13 @@
 ---
 title: "Taxonomic Divergence"
-author: "Gavin Masterson"
-date: "22 March 2020"
+date: 2020-03-28
 output:
   html_document:
     keep_md: true
+tags:
+  - taxonomy
+  - Rstats
+  - reptile
 ---
 
 ## Setting the scene
@@ -34,7 +37,7 @@ library(kableExtra)
 
 ### {taxadb}
 
-The `taxadb` package installs a taxonomic database of your choice *on your workstation*. This local databaseis installed from `taxadb`, which is periodically updated from the relevant online database APIs. For a thorough understanding of the data sources used by `taxadb`, I encourage you to read the documentation found at the [rOpenSci taxadb page](https://docs.ropensci.org/taxadb/articles/data-sources.html). The TL:DR is that you should not simply merge information from two different taxonomic data sources. The point is made in this paragraph:
+The `taxadb` package installs a taxonomic database of your choice *on your workstation*. This local databaseis installed from `taxadb`, which is periodically updated from the relevant online database APIs. For a thorough understanding of the data sources used by `taxadb`, I encourage you to read the documentation found at the [rOpenSci taxadb page](https://docs.ropensci.org/taxadb/articles/data-sources.html). The TL:DR is that you should not simply merge information from two different taxonomic data sources. The reason is explained in this paragraph:
 
 > "**Please Note**: `taxadb` advises against uncritically combining data from multiple providers. The same name is frequently used by different providers to mean different things – some providers consider two names synonyms that other providers consider distinct species. It is crucial to recognize that taxonomic name providers represent independent taxonomic theories, and not merely additional observations of the same immutable reality (Franz & Sterner (2018)). You cannot just merge two databases of taxonomic names like you can two databases of, say, plant traits to get a bigger and more complete sample, because the former can contain meaningful contradictions."
 
@@ -48,18 +51,23 @@ available_versions()
 
 In a related project, I queried the GISD database to ascertain the names of all herpetofaunal species that have established non-native or invasive populations to date. Let's import the file downloaded from the GISD and compare it to the herpetofauna listed in the ITIS database. First we import the `.csv` datafile, do some data preparation.
 
-Second we create a local ITIS database using td_create. Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a `left_join` where we tell the function that `Species` in GISD is the same variable as `scientificName` in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.
+Second we create a local ITIS database using `td_create.` Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a `left_join` where we tell the function that `Species` in GISD is the same variable as `scientificName` in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.
 
 ```{r merge, message = FALSE, warning = FALSE}
 
-GISD_query <- read_delim("amrep_gisd.csv", trim_ws = TRUE, delim = ";") %>%
+GISD_query <- read_delim("amrep_gisd_Feb2020.csv", 
+                         trim_ws = TRUE, 
+                         delim = ";") %>%
               .[,-8] %>% 
-              separate(Species, c("Genus", 
-                                  "Specific_Epithet", 
-                                  "Infraspecific_Epithet"), 
-                       sep = " ", remove = FALSE) 
+              separate(Species, 
+                       c("Genus", 
+                         "Specific_Epithet", 
+                         "Infraspecific_Epithet"), 
+                       sep = " ", 
+                       remove = FALSE) 
 
 td_create("itis")
+
 database <- filter_rank(c("Amphibia", "Reptilia"), "class")
 
 db_check <- GISD_query %>% 
@@ -71,16 +79,19 @@ db_check <- GISD_query %>%
                        taxonomicStatus_ITIS = taxonomicStatus,
                        acceptedNameUsageID) 
                 
-db_check %>%  select(-vernacularName_ITIS) %>%
-              .[c(1,5,6,16,20,23,28,30,31,43),] %>% 
-              kable() %>% 
-              kable_styling(bootstrap_options = c("striped", "hover")) %>% 
-              column_spec(column = 1, italic = TRUE) %>% 
-              row_spec(row = c(5,9), background = "Dodgerblue", color = "white")
+db_check %>% select(-vernacularName_ITIS) %>%
+             .[c(1,5,6,16,20,23,28,30,31,43),] %>% 
+             kable() %>% 
+             kable_styling(bootstrap_options = c("striped", "hover")) %>% 
+             column_spec(column = 1, 
+                        italic = TRUE) %>% 
+             row_spec(row = c(5,9), 
+                      background = "Dodgerblue", 
+                      color = "white")
 
 ```
 
-Unfortunately, taxonomic data and their dataframes don't make for very pretty data visualisations. I apologise for the 'wall of text' feeling in this post, but I hope that you find this worked example of `taxadb` worth the eye-strain.
+[Aside: Unfortunately, taxonomic data and their dataframes don't make for very pretty data visualisations. I apologise for the 'wall of text' feeling in this post, but I hope that you find this worked example of `taxadb` worth the eye-strain.]
 
 The table above shows just 10 of the 43 species but gives you a feel for the information I have extracted from ITIS. The two rows highlighted blue indicate examples of species that need additional consideration. *Elaphe guttata* is listed as a synonym, so we need to find the new, accepted name for the species, and *Norops grahami* is the species I mentioned earlier and appears to be missing from the ITIS database.
 
@@ -88,7 +99,8 @@ We are interested in the species in the GISD that have no match in the ITIS data
 
 ```{r investigate}
 db_check[which(is.na(db_check$taxonomicStatus_ITIS) == TRUE),] %>% 
-  select(-vernacularName_ITIS, -acceptedNameUsageID) %>% 
+  select(-vernacularName_ITIS, 
+         -acceptedNameUsageID) %>% 
   kable() %>% 
   kable_styling(bootstrap_options = c("striped", "hover")) %>% 
   column_spec(column = 1, italic = TRUE, width = "6cm")
@@ -105,14 +117,13 @@ db_check[which(db_check$taxonomicStatus_ITIS == "synonym"),] %>%
   filter(taxonomicStatus == "accepted") %>% 
   select(species_GISD,
          acceptedName_ITIS = scientificName,
-         acceptedNameUsageID
-         ) %>% 
+         acceptedNameUsageID) %>% 
   kable() %>% 
   kable_styling(bootstrap_options = c("striped", "hover")) %>% 
   column_spec(column = 1, italic = TRUE)
 ```
 
-The `acceptedNameUsageID` number is a way for us to backreference the spcies to the ITIS database to extract all the synonyms for a single species. Below I demonstrate the process for *Elaphe guttata* (Eastern Corn Snake), which shows us that the ITIS database recognises *Pantherophis guttatus* as the accepted name and the three other classifications as synonyms. You can also see that the `acceptedNameUsageID`is the same for all names of this species while the `taxonID` is different for each.
+The `acceptedNameUsageID` number is a way for us to backreference the spcies to the ITIS database to extract all the synonyms for a single species. Below I demonstrate the process for *Elaphe guttata* (Eastern Corn Snake), which shows us that the ITIS database recognises *Pantherophis guttatus* as the accepted name and the three other classifications as synonyms. You can also see that the `acceptedNameUsageID` is the same for all names of this species while the `taxonID` is different for each.
 
 ```{r filter}
 filter(database, acceptedNameUsageID == "ITIS:1081818") %>% 
@@ -131,7 +142,7 @@ filter(database, acceptedNameUsageID == "ITIS:1081818") %>%
 The last demo I want to do with `taxadb` is compare a list of species names from a reptile survey in 2006 with the current taxonomy of the species. I know for a fact that several names have changed over the past 14 years, so let's see how easy it is to determine the new accepted species names.
 
 ```{r rep_survey, message = FALSE}
-data_2006 <- read_csv("rep_survey.csv")
+data_2006 <- read_csv("rep_survey_2006.csv")
 
 species_2006 <- filter_name(data_2006[[1]]) %>% 
                 select(reptiles_2006 = input,
