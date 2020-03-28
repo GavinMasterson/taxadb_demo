@@ -1,7 +1,6 @@
 ---
-title: "Taxonomic Divergence"
-author: "Gavin Masterson"
-date: "22 March 2020"
+title: "{taxadb}: what's in a name?"
+date: 2020-03-28
 output:
   html_document:
     keep_md: true
@@ -13,13 +12,13 @@ tags:
 
 ## Setting the scene
 
-During a hobby project using the Global Invasive Species Database (GISD), I encountered several issues that are common when working with taxonomic databases. Having searched the database and imported the data, I noticed that some species had missing values ("NA") for one or more variables. The missing values for the < 10 species were not difficult to determine, but what if I had been processing a species list of several hundred species? How would I approach the problem of taxonomic verification in an automated, reproducible manner? 
+During a recent project using the Global Invasive Species Database (GISD), I encountered several issues that are common when working with taxonomic databases. Having searched the GISD and imported the data into R, I noticed that some species had missing values ("NA") for one or more variables. The missing values for the < 10 species were not difficult to determine manually, but what if I had been processing a species list of several hundred species? How would I approach the problem of taxonomic verification in a time-saving, reproducible manner? 
 
 The second issue was that species in my list of invasive herpetofauna had undergone taxonomic reassignment, either at species, genus or even family level. How should a biologist deal with this issue when communicating the results of an analysis or data visualisation such as mine? These issues are the topic of this post.
 
 ## Reality check
 
-In an **ideal world**, the GISD database (or whichever database you prefer) is updated as soon as taxonomic changes are accepted, and the search results can be treated as authoritative. Realistically, for any database with  vast number of taxa to consider it is unreasonable to expect the taxonomy of all species to be up-to-date and error-free. As I discovered in my invasive herpetofauna investigation, for some species the GISD was simultaneously ahead of and behind the other databases regarding taxonomic assignments and classifications.
+In an **ideal world**, the GISD (or whichever database you prefer) is updated as soon as taxonomic changes are accepted, and the search results can be treated as authoritative. Realistically, for any database with  vast number of taxa to consider it is unreasonable to expect the taxonomy of all species to be up-to-date and error-free. As I discovered in my invasive herpetofauna investigation, for some species the GISD was simultaneously ahead of and behind the other databases regarding taxonomic assignments and classifications.
 
 For example, for *Norops grahami* the GISD appears to accept the generic reassignment from *Anolis*, while the [Reptile Database](http://www.reptile-database.org/) notes the change on it's *N. grahami* [page](http://reptile-database.reptarium.cz/species?genus=Anolis&species=grahami&search_param=%28%28search%3D%27anolis+grahami%27%29%29), but has not reassigned it to *Norops* in their database yet. For the same species though, the Reptile Database has the family assignment specified as Dactyloidae whereas the GISD still assigns it to the Polychrotidae. So for the genus, the GISD is ahead, but behind for the family.
 
@@ -27,19 +26,18 @@ Deciding what to do in situations like this is always tricky, but a simple solut
 
 ## Introducing {taxadb}
 
-We install the `taxadb` packages as well as the `tidyverse` and our trusty `dplyr` for managing the post-query manipulations of the dataframes. Lastly I have used the `kableExtra` package to present the tabulated taxonomic data.
+We install the `taxadb` package and the `tidyverse` for managing the post-query manipulations of the dataframes. Lastly I have used the `kableExtra` package to present the tabulated taxonomic data.
 
 
 ```r
 library(taxadb)
 library(tidyverse)
-library(dplyr)
 library(kableExtra)
 ```
 
 ### {taxadb}
 
-The `taxadb` package installs a taxonomic database of your choice *on your workstation*. This local databaseis installed from `taxadb`, which is periodically updated from the relevant online database APIs. For a thorough understanding of the data sources used by `taxadb`, I encourage you to read the documentation found at the [rOpenSci taxadb page](https://docs.ropensci.org/taxadb/articles/data-sources.html). The TL:DR is that you should not simply merge information from two different taxonomic data sources. The point is made in this paragraph:
+The `taxadb` package installs a taxonomic database of your choice *on your workstation*. This local database is installed from `taxadb`, which is periodically updated from the relevant online database APIs. For a thorough understanding of the data sources used by `taxadb`, I encourage you to read the documentation found at the [rOpenSci taxadb page](https://docs.ropensci.org/taxadb/articles/data-sources.html). The TL:DR is that you should not simply merge information from two different taxonomic data sources, as explained in this paragraph:
 
 > "**Please Note**: `taxadb` advises against uncritically combining data from multiple providers. The same name is frequently used by different providers to mean different things – some providers consider two names synonyms that other providers consider distinct species. It is crucial to recognize that taxonomic name providers represent independent taxonomic theories, and not merely additional observations of the same immutable reality (Franz & Sterner (2018)). You cannot just merge two databases of taxonomic names like you can two databases of, say, plant traits to get a bigger and more complete sample, because the former can contain meaningful contradictions."
 
@@ -58,35 +56,46 @@ available_versions()
 
 In a related project, I queried the GISD database to ascertain the names of all herpetofaunal species that have established non-native or invasive populations to date. Let's import the file downloaded from the GISD and compare it to the herpetofauna listed in the ITIS database. First we import the `.csv` datafile, do some data preparation.
 
-Second we create a local ITIS database using td_create. Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a `left_join` where we tell the function that `Species` in GISD is the same variable as `scientificName` in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.
+Second we create a local ITIS database using `td_create.` Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a `left_join` where we tell the function that `Species` in GISD is the same variable as `scientificName` in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.
 
 
 ```r
-GISD_query <- read_delim("amrep_gisd.csv", trim_ws = TRUE, delim = ";") %>%
-              .[,-8] %>% 
-              separate(Species, c("Genus", 
-                                  "Specific_Epithet", 
-                                  "Infraspecific_Epithet"), 
-                       sep = " ", remove = FALSE) 
+GISD_herp <- read_delim("amrep_gisd_Feb2020.csv", 
+                         trim_ws = TRUE, 
+                         delim = ";") %>%
+              select(-X8) %>% 
+              separate(Species, 
+                       c("Genus", 
+                         "Specific_Epithet", 
+                         "Infraspecific_Epithet"), 
+                       sep = " ", 
+                       remove = FALSE) 
 
 td_create("itis")
+
 database <- filter_rank(c("Amphibia", "Reptilia"), "class")
 
-db_check <- GISD_query %>% 
+db_check <- GISD_herp %>% 
                 left_join(database, by = c("Species" = "scientificName")) %>%
                 select(species_GISD = Species,
                        vernacularName_ITIS = vernacularName,
-                       order_GISD = Order, order_ITIS = order,
-                       family_GISD = Family, family_ITIS = family,
+                       order_GISD = Order, 
+                       order_ITIS = order,
+                       family_GISD = Family, 
+                       family_ITIS = family,
                        taxonomicStatus_ITIS = taxonomicStatus,
                        acceptedNameUsageID) 
                 
-db_check %>%  select(-vernacularName_ITIS) %>%
-              .[c(1,5,6,16,20,23,28,30,31,43),] %>% 
-              kable() %>% 
-              kable_styling(bootstrap_options = c("striped", "hover")) %>% 
-              column_spec(column = 1, italic = TRUE) %>% 
-              row_spec(row = c(5,9), background = "Dodgerblue", color = "white")
+db_check %>% select(-vernacularName_ITIS) %>%
+             slice(c(1,5,6,16,20,23,28,30,31,43)) %>% 
+             kable() %>% 
+             kable_styling(bootstrap_options = c("striped", 
+                                                 "hover")) %>% 
+             column_spec(column = 1, 
+                         italic = TRUE) %>% 
+             row_spec(row = c(5,9), 
+                      background = "Dodgerblue", 
+                      color = "white")
 ```
 
 <table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
@@ -195,7 +204,7 @@ db_check %>%  select(-vernacularName_ITIS) %>%
 </tbody>
 </table>
 
-Unfortunately, taxonomic data and their dataframes don't make for very pretty data visualisations. I apologise for the 'wall of text' feeling in this post, but I hope that you find this worked example of `taxadb` worth the eye-strain.
+[Aside: Unfortunately, taxonomic data and their dataframes don't make for very pretty data visualisations. I apologise for the 'wall of text' feeling in this post, but I hope that you find this worked example of `taxadb` worth the eye-strain.]
 
 The table above shows just 10 of the 43 species but gives you a feel for the information I have extracted from ITIS. The two rows highlighted blue indicate examples of species that need additional consideration. *Elaphe guttata* is listed as a synonym, so we need to find the new, accepted name for the species, and *Norops grahami* is the species I mentioned earlier and appears to be missing from the ITIS database.
 
@@ -203,11 +212,16 @@ We are interested in the species in the GISD that have no match in the ITIS data
 
 
 ```r
-db_check[which(is.na(db_check$taxonomicStatus_ITIS) == TRUE),] %>% 
-  select(-vernacularName_ITIS, -acceptedNameUsageID) %>% 
+db_check %>%
+  filter(is.na(taxonomicStatus_ITIS)) %>% 
+  select(-vernacularName_ITIS, 
+         -acceptedNameUsageID) %>% 
   kable() %>% 
-  kable_styling(bootstrap_options = c("striped", "hover")) %>% 
-  column_spec(column = 1, italic = TRUE, width = "6cm")
+  kable_styling(bootstrap_options = c("striped", 
+                                      "hover")) %>% 
+  column_spec(column = 1, 
+              italic = TRUE, 
+              width = "6cm")
 ```
 
 <table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
@@ -263,17 +277,25 @@ Using the code below, I compare the name from our GISD list with the accepted na
 
 
 ```r
-db_check[which(db_check$taxonomicStatus_ITIS == "synonym"),] %>% 
+db_check %>%
+  filter(taxonomicStatus_ITIS == "synonym") %>% 
   select(-vernacularName_ITIS) %>% 
-  left_join(.,database, by = "acceptedNameUsageID") %>% 
+  left_join(database, by = "acceptedNameUsageID") %>% 
   filter(taxonomicStatus == "accepted") %>% 
   select(species_GISD,
          acceptedName_ITIS = scientificName,
-         acceptedNameUsageID
-         ) %>% 
-  kable() %>% 
-  kable_styling(bootstrap_options = c("striped", "hover")) %>% 
-  column_spec(column = 1, italic = TRUE)
+         acceptedNameUsageID) %>% 
+  mutate(acceptedNameUsageID = cell_spec(acceptedNameUsageID,
+                                         "html",
+                                         background = "Lightgreen",
+                                         color = "white",
+                                         bold = TRUE)) %>% 
+  kable("html",
+        escape = FALSE) %>% 
+  kable_styling(bootstrap_options = c("striped", 
+                                      "hover")) %>% 
+  column_spec(column = c(1,2), 
+              italic = TRUE)
 ```
 
 <table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
@@ -287,45 +309,49 @@ db_check[which(db_check$taxonomicStatus_ITIS == "synonym"),] %>%
 <tbody>
   <tr>
    <td style="text-align:left;font-style: italic;"> Chamaeleo jacksonii </td>
-   <td style="text-align:left;"> Trioceros jacksonii </td>
-   <td style="text-align:left;"> ITIS:1055685 </td>
+   <td style="text-align:left;font-style: italic;"> Trioceros jacksonii </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Lightgreen !important;">ITIS:1055685</span> </td>
   </tr>
   <tr>
    <td style="text-align:left;font-style: italic;"> Elaphe guttata </td>
-   <td style="text-align:left;"> Pantherophis guttatus </td>
-   <td style="text-align:left;"> ITIS:1081818 </td>
+   <td style="text-align:left;font-style: italic;"> Pantherophis guttatus </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Lightgreen !important;">ITIS:1081818</span> </td>
   </tr>
   <tr>
    <td style="text-align:left;font-style: italic;"> Litoria aurea </td>
-   <td style="text-align:left;"> Ranoidea aurea </td>
-   <td style="text-align:left;"> ITIS:1099285 </td>
+   <td style="text-align:left;font-style: italic;"> Ranoidea aurea </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Lightgreen !important;">ITIS:1099285</span> </td>
   </tr>
   <tr>
    <td style="text-align:left;font-style: italic;"> Norops sagrei </td>
-   <td style="text-align:left;"> Anolis sagrei </td>
-   <td style="text-align:left;"> ITIS:173903 </td>
+   <td style="text-align:left;font-style: italic;"> Anolis sagrei </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Lightgreen !important;">ITIS:173903</span> </td>
   </tr>
   <tr>
    <td style="text-align:left;font-style: italic;"> Ramphotyphlops braminus </td>
-   <td style="text-align:left;"> Indotyphlops braminus </td>
-   <td style="text-align:left;"> ITIS:1116297 </td>
+   <td style="text-align:left;font-style: italic;"> Indotyphlops braminus </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Lightgreen !important;">ITIS:1116297</span> </td>
   </tr>
 </tbody>
 </table>
 
-The `acceptedNameUsageID` number is a way for us to backreference the spcies to the ITIS database to extract all the synonyms for a single species. Below I demonstrate the process for *Elaphe guttata* (Eastern Corn Snake), which shows us that the ITIS database recognises *Pantherophis guttatus* as the accepted name and the three other classifications as synonyms. You can also see that the `acceptedNameUsageID`is the same for all names of this species while the `taxonID` is different for each.
+The `acceptedNameUsageID` number is a way for us to backreference the spcies to the ITIS database to extract all the synonyms for a single species. Below I demonstrate the process for *Elaphe guttata* (Eastern Corn Snake), which shows us that the ITIS database recognises *Pantherophis guttatus* as the accepted name and the three other classifications as synonyms. You can also see that the `acceptedNameUsageID` is the same for all names of this species while the `taxonID` is different for each.
 
 
 ```r
-filter(database, acceptedNameUsageID == "ITIS:1081818") %>% 
+database %>%   
+  filter(acceptedNameUsageID == "ITIS:1081818") %>% 
   select(scientificName,
          taxonRank,
          taxonomicStatus,
          acceptedNameUsageID,
          taxonID) %>% 
   kable() %>% 
-  kable_styling(bootstrap_options = c("striped", "hover")) %>% 
-  column_spec(column = 1, italic = TRUE, width = "5cm")
+  kable_styling(bootstrap_options = c("striped",
+                                      "hover")) %>% 
+  column_spec(column = 1, 
+              italic = TRUE, 
+              width = "5cm")
 ```
 
 <table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
@@ -376,9 +402,9 @@ The last demo I want to do with `taxadb` is compare a list of species names from
 
 
 ```r
-data_2006 <- read_csv("rep_survey.csv")
+data_2006 <- read_lines("rep_survey_2006.txt")
 
-species_2006 <- filter_name(data_2006[[1]]) %>% 
+species_2006 <- filter_name(data_2006) %>% 
                 select(reptiles_2006 = input,
                        acceptedNameUsageID,
                        Genus_ITIS = genus,
@@ -394,9 +420,24 @@ The output of our query provides food for thought. Five of the 20 species find n
 species_2006 %>% 
   filter(taxonomicStatus_ITIS == "synonym") %>% 
   select(-vernacularName_ITIS) %>% 
-  kable() %>% 
-  kable_styling(bootstrap_options = c("striped", "hover")) %>% 
-  column_spec(column = 1, italic = TRUE)
+  mutate(Genus_ITIS = cell_spec(Genus_ITIS,
+                                "html", 
+                                background = "darkviolet", 
+                                color = "white", 
+                                bold = TRUE,
+                                italic = TRUE),
+         specificEpithet_ITIS = cell_spec(specificEpithet_ITIS,
+                                          "html", 
+                                          background = "pink", 
+                                          color = "white", 
+                                          bold = TRUE,
+                                          italic = TRUE)) %>%
+  kable("html", 
+        escape = FALSE) %>% 
+  kable_styling(bootstrap_options = c("striped", 
+                                      "hover")) %>% 
+  column_spec(column = 1, 
+              italic = TRUE)
 ```
 
 <table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
@@ -413,15 +454,15 @@ species_2006 %>%
   <tr>
    <td style="text-align:left;font-style: italic;"> Lamprophis capensis </td>
    <td style="text-align:left;"> ITIS:1082810 </td>
-   <td style="text-align:left;"> Boaedon </td>
-   <td style="text-align:left;"> capensis </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold; font-style: italic;   color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: darkviolet !important;">Boaedon</span> </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold; font-style: italic;   color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: pink !important;">capensis</span> </td>
    <td style="text-align:left;"> synonym </td>
   </tr>
   <tr>
    <td style="text-align:left;font-style: italic;"> Typhlops bibronii </td>
    <td style="text-align:left;"> ITIS:1116090 </td>
-   <td style="text-align:left;"> Afrotyphlops </td>
-   <td style="text-align:left;"> bibronii </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold; font-style: italic;   color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: darkviolet !important;">Afrotyphlops</span> </td>
+   <td style="text-align:left;"> <span style=" font-weight: bold; font-style: italic;   color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: pink !important;">bibronii</span> </td>
    <td style="text-align:left;"> synonym </td>
   </tr>
 </tbody>
@@ -447,24 +488,25 @@ fuzzy_filter(c(input$binomial), match = "contains") %>%
          taxonRank,
          taxonomicStatus,
          class) %>%
-  mutate(
-    class = if_else(class == "Reptilia",
-                  cell_spec(class, "html", 
-                            background = "Dodgerblue", 
-                            color = "white", 
-                            bold = T),
-                  class),
-    taxonRank = if_else(taxonRank == "subspecies",
-                  cell_spec(taxonRank, "html", 
-                            background = "green", 
-                            color = "white", 
-                            bold = T),
-                  taxonRank)
-    ) %>% 
+  mutate(class = if_else(class == "Reptilia",
+                          cell_spec(class, "html", 
+                                    background = "Dodgerblue", 
+                                    color = "white", 
+                                    bold = TRUE),
+                          class),
+          taxonRank = if_else(taxonRank == "subspecies",
+                                cell_spec(taxonRank, "html", 
+                                          background = "green", 
+                                          color = "white", 
+                                          bold = TRUE),
+                                taxonRank)) %>% 
   arrange(by_group = scientificName) %>% 
-  kable("html", escape = F) %>% 
-  kable_styling(bootstrap_options = c("striped", "hover")) %>% 
-  column_spec(column = 2, italic = TRUE)
+  kable("html", 
+        escape = FALSE) %>% 
+  kable_styling(bootstrap_options = c("striped", 
+                                      "hover")) %>% 
+  column_spec(column = 2, 
+              italic = TRUE)
 ```
 
 <table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
@@ -532,8 +574,13 @@ fuzzy_filter(c(input$binomial), match = "contains") %>%
 
 Using the `input` object created above we could search for fuzzy matches of the genus name or specific epithet to get a more detailed understanding of the taxonomic situation in each case. It is interesting to see the outputs, just change `input$binomial` to `input$Genus` etc. You will see that matches from any class are returned, so you can improve the returned table using a call such as `filter(class == "Reptilia)`, but remember that you will also lose all "NA" columns this way.
 
-# Taxonomic issues in data science projects
+# So much more than a name...
 
 Taxonomic assignment within the 'Tree of Life' is a neverending process of hypothesis generation and revision. The technology for genomic sequencing and analysis has been available for more than 40 years, and yet phylogenetic revisions of reptiles and amphibians are being published annually. Processing these revisions places a heavy burden on database managers and they do an often thankless task with great dedication. The nett result is that each database varies from others in unpredictable ways. If this post achieves anything, I hope it gives you a deep appreciation for the fact that we are learning new facts about the interrelatedness of all organisms with every phylogenetic analysis conducted. Secondly, I want to highlight the incredible work being done by all taxonomic database managers in their efforts to curate the relevant taxonomic changes (read: taxonomic hypotheses) on an ongoing basis. Their work makes my biological research infinitely easier. A huge thank you to you all!
 
-The last thank you goes to the developers of the `taxadb` package - Carl Boettiger (Author, maintainer); Kari Norman (Author); Jorrit Poelen (Author); Scott Chamberlain (Author); Noam Ross (Contributor). I am always blown away by the R community and its collaborative, opensource practices. The openSci project is a brilliant example of this philosophy. Thank you so much.
+The last and very big "Thank you" goes to the developers of the `taxadb` package - Carl Boettiger (Author, maintainer); Kari Norman (Author); Jorrit Poelen (Author); Scott Chamberlain (Author); Noam Ross (Contributor). I am always blown away by the R community and its collaborative, opensource practices. The openSci project is a brilliant example of this philosophy. Thank you so much!
+
+# Appendix
+
+The files and code used in this blog post, can be found in [this GitHub repository](https://github.com/GavinMasterson/taxadb_demo). 
+If you have any comments, feedback or cool `taxadb` tips - message me on Twitter or via email through the links below.
