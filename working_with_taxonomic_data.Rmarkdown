@@ -3,8 +3,8 @@ title: "Taxonomic Divergence"
 author: "Gavin Masterson"
 date: "22 March 2020"
 output: 
-  html_document:
   keep_md: true
+  html_document:
 ---
 
 ## Setting the scene

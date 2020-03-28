@@ -381,15 +381,18 @@ summary {
 
 <div id="setting-the-scene" class="section level2">
 <h2>Setting the scene</h2>
-<p>In a <a href>related blog post</a> on the Global Invasive Species Database (GISD), I demonstrated the use of a webscraper and #rstats to take a quick look at the topic of invasive herpetofauna (or the #HerpMafia, as I dubbed them). During the data import and analysis, I encountered several issues that are common in taxonomic databases. Firstly, some species had missing values (“NA”) for one or more database variables. In my case, the missing values were not difficult to determine and input manually, but what if I had been processing a species list of several hundred species? How would I approach the problem of taxonomic verification in an automated manner? Secondly, I discovered that species in my list of invasive herpetofauna had undergone taxonomic reassignment, either at species, genus or even family level. How should a biologist deal with this issue when communicating the results of an analysis or data visualisation such as mine? Thirdly, there is additional uncertainty in taxonomic status when dealing with sub-populations of a species such as invasive populations. Invasive populations of a species that is later revised, split or lumped with another species using an analysis conducted in the species’ native range does not necessarily directly translate to a revised taxonomic status for the invasive population. These issues are the topic of this post.</p>
+<p>During a hobby project using the Global Invasive Species Database (GISD), I encountered several issues that are common when working with taxonomic databases. Having searched the database and imported the data, I noticed that some species had missing values (“NA”) for one or more variables. The missing values for the &lt; 10 species were not difficult to determine, but what if I had been processing a species list of several hundred species? How would I approach the problem of taxonomic verification in an automated, reproducible manner?</p>
+<p>The second issue was that species in my list of invasive herpetofauna had undergone taxonomic reassignment, either at species, genus or even family level. How should a biologist deal with this issue when communicating the results of an analysis or data visualisation such as mine? These issues are the topic of this post.</p>
 </div>
 <div id="reality-check" class="section level2">
 <h2>Reality check</h2>
-<p>In an <strong>ideal world</strong>, the GISD database (or whichever database you prefer) is updated as soon as taxonomic changes are accepted, and the search results can be treated as authoritative. Realistically, for any database with vast number of taxa to consider it is unreasonable to expect the taxonomy of all species to be up-to-date and error-free. As I discovered in my invasive herpetofauna investigation, for some species the GISD was simultaneously ahead of and behind the other databases regarding taxonomic assignments and classifications. For example, for <em>Norops grahami</em> the GISD appears to accept the generic reassignment from <em>Anolis</em>, while the <a href="http://www.reptile-database.org/">Reptile Database</a> notes the change on it’s <em>N. grahami</em> <a href="http://reptile-database.reptarium.cz/species?genus=Anolis&amp;species=grahami&amp;search_param=%28%28search%3D%27anolis+grahami%27%29%29">page</a>, but has not reassigned it to <em>Norops</em> in their database. For the same species though, the Reptile Database has the Family assignment specified as Dactyloidae whereas the GISD still assigns it to the Polychrotidae. Deciding what to do in situations like this is always tricky, but a simple best case scenario is to be able to present these uncertainties to the readers of your research/communication. Thankfully I have learned about two R packages that can be used to query, and then compare, the world’s major taxonomic databases from the comfort of your command line.</p>
+<p>In an <strong>ideal world</strong>, the GISD database (or whichever database you prefer) is updated as soon as taxonomic changes are accepted, and the search results can be treated as authoritative. Realistically, for any database with vast number of taxa to consider it is unreasonable to expect the taxonomy of all species to be up-to-date and error-free. As I discovered in my invasive herpetofauna investigation, for some species the GISD was simultaneously ahead of and behind the other databases regarding taxonomic assignments and classifications.</p>
+<p>For example, for <em>Norops grahami</em> the GISD appears to accept the generic reassignment from <em>Anolis</em>, while the <a href="http://www.reptile-database.org/">Reptile Database</a> notes the change on it’s <em>N. grahami</em> <a href="http://reptile-database.reptarium.cz/species?genus=Anolis&amp;species=grahami&amp;search_param=%28%28search%3D%27anolis+grahami%27%29%29">page</a>, but has not reassigned it to <em>Norops</em> in their database yet. For the same species though, the Reptile Database has the family assignment specified as Dactyloidae whereas the GISD still assigns it to the Polychrotidae. So for the genus, the GISD is ahead, but behind for the family.</p>
+<p>Deciding what to do in situations like this is always tricky, but a simple solution is to be able to present these uncertainties to the readers of your research/communication. Thankfully there is an R package that can be used to query the world’s major taxonomic databases from the comfort of your command line.</p>
 </div>
 <div id="introducing-taxadb" class="section level2">
 <h2>Introducing {taxadb}</h2>
-<p>We install the <code>taxadb</code> packages as well as the <code>tidyverse</code> and our trusty <code>dplyr</code> for managing the post-query manipulations of the dataframes. Lastly I have used the <code>kableExtra</code> package to present tabulated data.</p>
+<p>We install the <code>taxadb</code> packages as well as the <code>tidyverse</code> and our trusty <code>dplyr</code> for managing the post-query manipulations of the dataframes. Lastly I have used the <code>kableExtra</code> package to present the tabulated taxonomic data.</p>
 <pre class="r"><code>library(taxadb)
 library(tidyverse)
 library(dplyr)
@@ -405,10 +408,14 @@ library(kableExtra)</code></pre>
 <pre><code>## [1] &quot;2019&quot; &quot;dwc&quot;</code></pre>
 <div id="a-quick-comparison-of-herpetofaunal-species-in-gisd-and-itis" class="section level4">
 <h4>A quick comparison of herpetofaunal species in GISD and ITIS</h4>
-<p>In a related project, I queried the GISD database to ascertain the names of all herpetofaunal species that have established non-native or invasive populations to date. Let’s import the file downloaded from the GISD and compare it to the herpetofauna listed in the ITIS database. First we import the <code>.csv</code> datafile, do some data preparation. Second we create a local ITIS database using td_create. Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a <code>left_join</code> where we tell the function that <code>Species</code> in GISD is the same variable as <code>scientificName</code> in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.</p>
+<p>In a related project, I queried the GISD database to ascertain the names of all herpetofaunal species that have established non-native or invasive populations to date. Let’s import the file downloaded from the GISD and compare it to the herpetofauna listed in the ITIS database. First we import the <code>.csv</code> datafile, do some data preparation.</p>
+<p>Second we create a local ITIS database using td_create. Third we extract all amphibian and reptile species from the ITIS database. Lastly we join the information in the two tibbles using a <code>left_join</code> where we tell the function that <code>Species</code> in GISD is the same variable as <code>scientificName</code> in ITIS. After joining the two tibbles, I decided to select just the variables that I am interested in.</p>
 <pre class="r"><code>GISD_query &lt;- read_delim(&quot;amrep_gisd.csv&quot;, trim_ws = TRUE, delim = &quot;;&quot;) %&gt;%
               .[,-8] %&gt;% 
-              separate(Species, c(&quot;Genus&quot;, &quot;Specific_Epithet&quot;, &quot;Infraspecific_Epithet&quot;), sep = &quot; &quot;, remove = FALSE) 
+              separate(Species, c(&quot;Genus&quot;, 
+                                  &quot;Specific_Epithet&quot;, 
+                                  &quot;Infraspecific_Epithet&quot;), 
+                       sep = &quot; &quot;, remove = FALSE) 
 
 td_create(&quot;itis&quot;)
 database &lt;- filter_rank(c(&quot;Amphibia&quot;, &quot;Reptilia&quot;), &quot;class&quot;)
@@ -422,11 +429,13 @@ db_check &lt;- GISD_query %&gt;%
                        taxonomicStatus_ITIS = taxonomicStatus,
                        acceptedNameUsageID) 
                 
-db_check %&gt;%  select(-vernacularName_ITIS) %&gt;% 
+db_check %&gt;%  select(-vernacularName_ITIS) %&gt;%
+              .[c(1,5,6,16,20,23,28,30,31,43),] %&gt;% 
               kable() %&gt;% 
-              kable_styling() %&gt;% 
-              column_spec(column = 1, italic = TRUE, width = &quot;8cm&quot;)</code></pre>
-<table class="table" style="margin-left: auto; margin-right: auto;">
+              kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;)) %&gt;% 
+              column_spec(column = 1, italic = TRUE) %&gt;% 
+              row_spec(row = c(5,9), background = &quot;Dodgerblue&quot;, color = &quot;white&quot;)</code></pre>
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:left;">
@@ -454,7 +463,7 @@ acceptedNameUsageID
 </thead>
 <tbody>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Anolis aeneus
 </td>
 <td style="text-align:left;">
@@ -477,76 +486,7 @@ ITIS:1056079
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis carolinensis
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173885
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis cristatellus
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173887
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis distichus
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173890
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Anolis equestris
 </td>
 <td style="text-align:left;">
@@ -569,7 +509,7 @@ ITIS:173891
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Anolis extremus
 </td>
 <td style="text-align:left;">
@@ -592,214 +532,7 @@ ITIS:1056181
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis garmani
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173893
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis leachii
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:1056241
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis lineatus
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:1056247
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis maynardi
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:1056271
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis porcatus
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173900
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis richardii
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:208772
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis trinitatis
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:1056387
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Anolis wattsi
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Boa constrictor imperator
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Boidae
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Boiga irregularis
 </td>
 <td style="text-align:left;">
@@ -822,145 +555,30 @@ ITIS:174206
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Caiman crocodilus
-</td>
-<td style="text-align:left;">
-Crocodilia
-</td>
-<td style="text-align:left;">
-Crocodilia
-</td>
-<td style="text-align:left;">
-Alligatoridae
-</td>
-<td style="text-align:left;">
-Alligatoridae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:174370
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Chamaeleo jacksonii
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Chamaeleonidae
-</td>
-<td style="text-align:left;">
-Chamaeleonidae
-</td>
-<td style="text-align:left;">
-synonym
-</td>
-<td style="text-align:left;">
-ITIS:1055685
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Ctenosaura similis
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Iguanidae
-</td>
-<td style="text-align:left;">
-Iguanidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:585835
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;color: white !important;background-color: Dodgerblue !important;">
 Elaphe guttata
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 Squamata
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 Squamata
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 Colubridae
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 Colubridae
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 synonym
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 ITIS:1081818
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Eleutherodactylus coqui
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Leptodactylidae
-</td>
-<td style="text-align:left;">
-Eleutherodactylidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173559
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Eleutherodactylus johnstonei
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Leptodactylidae
-</td>
-<td style="text-align:left;">
-Eleutherodactylidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:183784
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Eleutherodactylus planirostris
 </td>
 <td style="text-align:left;">
@@ -983,99 +601,7 @@ ITIS:173568
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Gastrophryne carolinensis
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Microhylidae
-</td>
-<td style="text-align:left;">
-Microhylidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173467
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Hemidactylus frenatus
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Gekkonidae
-</td>
-<td style="text-align:left;">
-Gekkonidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:174056
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Hemidactylus mabouia
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Gekkonidae
-</td>
-<td style="text-align:left;">
-Gekkonidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:174058
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Iguana iguana
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Iguanidae
-</td>
-<td style="text-align:left;">
-Iguanidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173930
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Lithobates catesbeianus
 </td>
 <td style="text-align:left;">
@@ -1098,30 +624,7 @@ ITIS:775084
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Litoria aurea
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Hylidae
-</td>
-<td style="text-align:left;">
-Pelodryadidae
-</td>
-<td style="text-align:left;">
-synonym
-</td>
-<td style="text-align:left;">
-ITIS:1099285
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Natrix maura
 </td>
 <td style="text-align:left;">
@@ -1144,283 +647,30 @@ ITIS:700797
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;color: white !important;background-color: Dodgerblue !important;">
 Norops grahami
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 Squamata
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 NA
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 Polychrotidae
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 NA
 </td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 NA
 </td>
-<td style="text-align:left;">
-NA
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Norops sagrei
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Polychrotidae
-</td>
-<td style="text-align:left;">
-Dactyloidae
-</td>
-<td style="text-align:left;">
-synonym
-</td>
-<td style="text-align:left;">
-ITIS:173903
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Osteopilus septentrionalis
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Hylidae
-</td>
-<td style="text-align:left;">
-Hylidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:173538
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Podarcis sicula
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Lacertidae
-</td>
-<td style="text-align:left;">
-Lacertidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:564588
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Python bivittatus
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Pythonidae
-</td>
-<td style="text-align:left;">
-Pythonidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:1094050
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Ramphotyphlops braminus
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Typhlopidae
-</td>
-<td style="text-align:left;">
-Typhlopidae
-</td>
-<td style="text-align:left;">
-synonym
-</td>
-<td style="text-align:left;">
-ITIS:1116297
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Rhinella marina
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Bufonidae
-</td>
-<td style="text-align:left;">
-Bufonidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:773729
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Scinax ruber
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Hylidae
-</td>
-<td style="text-align:left;">
-Hylidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:662814
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Scinax x-signatus
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Anura
-</td>
-<td style="text-align:left;">
-Hylidae
-</td>
-<td style="text-align:left;">
-Hylidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:662824
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Trachemys scripta elegans
-</td>
-<td style="text-align:left;">
-Testudines
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-Emydidae
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
-NA
-</td>
-<td style="text-align:left;">
+<td style="text-align:left;color: white !important;background-color: Dodgerblue !important;">
 NA
 </td>
 </tr>
 <tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Varanus indicus
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Varanidae
-</td>
-<td style="text-align:left;">
-Varanidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:174116
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
-Varanus niloticus
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Squamata
-</td>
-<td style="text-align:left;">
-Varanidae
-</td>
-<td style="text-align:left;">
-Varanidae
-</td>
-<td style="text-align:left;">
-accepted
-</td>
-<td style="text-align:left;">
-ITIS:683047
-</td>
-</tr>
-<tr>
-<td style="text-align:left;width: 8cm; font-style: italic;">
+<td style="text-align:left;font-style: italic;">
 Xenopus laevis
 </td>
 <td style="text-align:left;">
@@ -1444,13 +694,15 @@ ITIS:173549
 </tr>
 </tbody>
 </table>
+<p>Unfortunately, taxonomic data and their dataframes don’t make for very pretty data visualisations. I apologise for the ‘wall of text’ feeling in this post, but I hope that you find this worked example of <code>taxadb</code> worth the eye-strain.</p>
+<p>The table above shows just 10 of the 43 species but gives you a feel for the information I have extracted from ITIS. The two rows highlighted blue indicate examples of species that need additional consideration. <em>Elaphe guttata</em> is listed as a synonym, so we need to find the new, accepted name for the species, and <em>Norops grahami</em> is the species I mentioned earlier and appears to be missing from the ITIS database.</p>
 <p>We are interested in the species in the GISD that have no match in the ITIS database. Species that have no match will have missing values for all the *_ITIS variables, so I chose <code>taxonomicStatus_ITIS</code>. The output shows us that there are four species in the GISD that have no match in the ITIS database.</p>
 <pre class="r"><code>db_check[which(is.na(db_check$taxonomicStatus_ITIS) == TRUE),] %&gt;% 
   select(-vernacularName_ITIS, -acceptedNameUsageID) %&gt;% 
   kable() %&gt;% 
-  kable_styling() %&gt;% 
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;)) %&gt;% 
   column_spec(column = 1, italic = TRUE, width = &quot;6cm&quot;)</code></pre>
-<table class="table" style="margin-left: auto; margin-right: auto;">
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:left;">
@@ -1556,7 +808,7 @@ NA
 </tr>
 </tbody>
 </table>
-<p>I am also interested in species that are synonyms and not currently the accepted scientific name for the species. Any species identified by a synonym in the GISD merits further investigation to determine if the most recent taxonomic assignment gave due consideration to the status of the alien/invasive population.</p>
+<p>I am also interested in names that are synonyms and not currently the accepted scientific name for the species. Any species identified by a synonym in the GISD merits further investigation to determine if the most recent taxonomic assignment gave due consideration to the status of the alien/invasive population.</p>
 <p>Using the code below, I compare the name from our GISD list with the accepted name in ITIS database. The code allows us to determine the level at which the reassignment occurred. A reassignment at genus level might mean that less attention is needed as compared to a change in the specific epithet. The work doesn’t end when you identify differences using this comparison but it does get a useful pointer.</p>
 <pre class="r"><code>db_check[which(db_check$taxonomicStatus_ITIS == &quot;synonym&quot;),] %&gt;% 
   select(-vernacularName_ITIS) %&gt;% 
@@ -1567,9 +819,9 @@ NA
          acceptedNameUsageID
          ) %&gt;% 
   kable() %&gt;% 
-  kable_styling() %&gt;% 
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;)) %&gt;% 
   column_spec(column = 1, italic = TRUE)</code></pre>
-<table class="table" style="margin-left: auto; margin-right: auto;">
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:left;">
@@ -1649,9 +901,9 @@ ITIS:1116297
          acceptedNameUsageID,
          taxonID) %&gt;% 
   kable() %&gt;% 
-  kable_styling() %&gt;% 
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;)) %&gt;% 
   column_spec(column = 1, italic = TRUE, width = &quot;5cm&quot;)</code></pre>
-<table class="table" style="margin-left: auto; margin-right: auto;">
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:left;">
@@ -1747,7 +999,7 @@ ITIS:1081818
 </div>
 <div id="out-with-the-old" class="section level1">
 <h1>Out with the old…</h1>
-<p>The last thing I want to do is compare a list of species names from a reptile survey in 2006 with the current taxonomy of the species. I know for a fact that several names have changed over the past 14 years, so let’s see how easy it is to determine the new accepted species names.</p>
+<p>The last demo I want to do with <code>taxadb</code> is compare a list of species names from a reptile survey in 2006 with the current taxonomy of the species. I know for a fact that several names have changed over the past 14 years, so let’s see how easy it is to determine the new accepted species names.</p>
 <pre class="r"><code>data_2006 &lt;- read_csv(&quot;rep_survey.csv&quot;)
 
 species_2006 &lt;- filter_name(data_2006[[1]]) %&gt;% 
@@ -1757,14 +1009,14 @@ species_2006 &lt;- filter_name(data_2006[[1]]) %&gt;%
                        specificEpithet_ITIS = specificEpithet,
                        taxonomicStatus_ITIS = taxonomicStatus,
                        vernacularName_ITIS = vernacularName)</code></pre>
-<p>The output of our query provides food for thought. Five of the 20 species find no matches in the ITIS database. Eleven names are still the accepted name for the species concerned and two names are synonyms. We could use our code from above to get the accepted name, but we can also see that the <code>filter_name</code> function returns a <code>genus</code> and <code>specificEpithet</code> variable from the ITIS database. In the case of synonyms, these two variables hold the accepted name for the species.</p>
+<p>The output of our query provides food for thought. Five of the 20 species find no matches in the ITIS database. Eleven names are still the accepted name for the species concerned and two names are synonyms. We could use our code from above to get the accepted name, but we see that the <code>filter_name</code> function returns a <code>genus</code> and <code>specificEpithet</code> variable from the ITIS database. In the case of synonyms, these two variables hold the accepted name for the species.</p>
 <pre class="r"><code>species_2006 %&gt;% 
   filter(taxonomicStatus_ITIS == &quot;synonym&quot;) %&gt;% 
   select(-vernacularName_ITIS) %&gt;% 
   kable() %&gt;% 
-  kable_styling() %&gt;% 
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;)) %&gt;% 
   column_spec(column = 1, italic = TRUE)</code></pre>
-<table class="table" style="margin-left: auto; margin-right: auto;">
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
 <thead>
 <tr>
 <th style="text-align:left;">
@@ -1821,7 +1073,7 @@ synonym
 </tr>
 </tbody>
 </table>
-<p>Two of the seven species for which we have no genus or specific epithet matches do have ITIS ID numbers but they have missing taxonomic hierarchy information. While we could use their ID numbers to get further information, I decided to use the <code>fuzzy_filter</code> function to search for matching names at different hierarchies. For <em>Agama aculeata distanti</em>, <em>Agama atra atra</em>, <em>Bitis arietans arietans</em>, we see that taxonomic information is not missing when we search at the species level but is missing for each subspecies level. For <em>Agama atra</em>, the ITIS databse recognises no subspecies, so our trinomial designation finds no ID match.</p>
+<p>Two of the seven species for which we have no genus or specific epithet matches do have ITIS ID numbers but they have missing taxonomic hierarchy information. While we could use their ID numbers to get further information, here I will use the <code>fuzzy_filter</code> function to search for matching names at different hierarchies. For <em>Agama aculeata distanti</em>, <em>Agama atra atra</em>, <em>Bitis arietans arietans</em>, we see that taxonomic information is not missing when we search at the species level but is missing for each subspecies level. For <em>Agama atra</em>, the ITIS databse recognises no subspecies, so our trinomial designation finds no ID match.</p>
 <pre class="r"><code>input &lt;- species_2006 %&gt;%  
           filter(is.na(Genus_ITIS) == TRUE) %&gt;% 
           separate(reptiles_2006, c(&quot;Genus&quot;, &quot;Specific_Epithet&quot;, &quot;Subspecific_Epithet&quot;),
@@ -1837,19 +1089,168 @@ fuzzy_filter(c(input$binomial), match = &quot;contains&quot;) %&gt;%
          scientificName,
          taxonRank,
          taxonomicStatus,
-         class) %&gt;% 
-  arrange()</code></pre>
-<pre><code>## # A tibble: 7 x 5
-##   taxonID      scientificName          taxonRank  taxonomicStatus class   
-##   &lt;chr&gt;        &lt;chr&gt;                   &lt;chr&gt;      &lt;chr&gt;           &lt;chr&gt;   
-## 1 ITIS:1055456 Agama aculeata          species    accepted        Reptilia
-## 2 ITIS:1055460 Agama atra              species    accepted        Reptilia
-## 3 ITIS:1056978 Agama aculeata distanti subspecies accepted        &lt;NA&gt;    
-## 4 ITIS:1056979 Agama aculeata aculeata subspecies accepted        &lt;NA&gt;    
-## 5 ITIS:634949  Bitis arietans          species    accepted        Reptilia
-## 6 ITIS:635232  Bitis arietans arietans subspecies accepted        &lt;NA&gt;    
-## 7 ITIS:635233  Bitis arietans somalica subspecies accepted        &lt;NA&gt;</code></pre>
-<p>Using the <code>input</code> object created above we can search for fuzzy matches of the genus name or specific epithet. It is interesting to see the outputs, but I will leave that to anyone interested in testing their new skills further. Feel free to contact me with any questions or feedback.</p>
+         class) %&gt;%
+  mutate(
+    class = if_else(class == &quot;Reptilia&quot;,
+                  cell_spec(class, &quot;html&quot;, 
+                            background = &quot;Dodgerblue&quot;, 
+                            color = &quot;white&quot;, 
+                            bold = T),
+                  class),
+    taxonRank = if_else(taxonRank == &quot;subspecies&quot;,
+                  cell_spec(taxonRank, &quot;html&quot;, 
+                            background = &quot;green&quot;, 
+                            color = &quot;white&quot;, 
+                            bold = T),
+                  taxonRank)
+    ) %&gt;% 
+  arrange(by_group = scientificName) %&gt;% 
+  kable(&quot;html&quot;, escape = F) %&gt;% 
+  kable_styling(bootstrap_options = c(&quot;striped&quot;, &quot;hover&quot;)) %&gt;% 
+  column_spec(column = 2, italic = TRUE)</code></pre>
+<table class="table table-striped table-hover" style="margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+taxonID
+</th>
+<th style="text-align:left;">
+scientificName
+</th>
+<th style="text-align:left;">
+taxonRank
+</th>
+<th style="text-align:left;">
+taxonomicStatus
+</th>
+<th style="text-align:left;">
+class
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+ITIS:1055456
+</td>
+<td style="text-align:left;font-style: italic;">
+Agama aculeata
+</td>
+<td style="text-align:left;">
+species
+</td>
+<td style="text-align:left;">
+accepted
+</td>
+<td style="text-align:left;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Dodgerblue !important;">Reptilia</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ITIS:1056979
+</td>
+<td style="text-align:left;font-style: italic;">
+Agama aculeata aculeata
+</td>
+<td style="text-align:left;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: green !important;">subspecies</span>
+</td>
+<td style="text-align:left;">
+accepted
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ITIS:1056978
+</td>
+<td style="text-align:left;font-style: italic;">
+Agama aculeata distanti
+</td>
+<td style="text-align:left;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: green !important;">subspecies</span>
+</td>
+<td style="text-align:left;">
+accepted
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ITIS:1055460
+</td>
+<td style="text-align:left;font-style: italic;">
+Agama atra
+</td>
+<td style="text-align:left;">
+species
+</td>
+<td style="text-align:left;">
+accepted
+</td>
+<td style="text-align:left;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Dodgerblue !important;">Reptilia</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ITIS:634949
+</td>
+<td style="text-align:left;font-style: italic;">
+Bitis arietans
+</td>
+<td style="text-align:left;">
+species
+</td>
+<td style="text-align:left;">
+accepted
+</td>
+<td style="text-align:left;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: Dodgerblue !important;">Reptilia</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ITIS:635232
+</td>
+<td style="text-align:left;font-style: italic;">
+Bitis arietans arietans
+</td>
+<td style="text-align:left;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: green !important;">subspecies</span>
+</td>
+<td style="text-align:left;">
+accepted
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+ITIS:635233
+</td>
+<td style="text-align:left;font-style: italic;">
+Bitis arietans somalica
+</td>
+<td style="text-align:left;">
+<span style=" font-weight: bold;    color: white !important;border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: green !important;">subspecies</span>
+</td>
+<td style="text-align:left;">
+accepted
+</td>
+<td style="text-align:left;">
+NA
+</td>
+</tr>
+</tbody>
+</table>
+<p>Using the <code>input</code> object created above we could search for fuzzy matches of the genus name or specific epithet to get a more detailed understanding of the taxonomic situation in each case. It is interesting to see the outputs, just change <code>input$binomial</code> to <code>input$Genus</code> etc. You will see that matches from any class are returned, so you can improve the returned table using a call such as <code>filter(class == &quot;Reptilia)</code>, but remember that you will also lose all “NA” columns this way.</p>
 </div>
 <div id="taxonomic-issues-in-data-science-projects" class="section level1">
 <h1>Taxonomic issues in data science projects</h1>

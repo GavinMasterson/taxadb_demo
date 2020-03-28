@@ -2,9 +2,9 @@
 title: "Taxonomic Divergence"
 author: "Gavin Masterson"
 date: "22 March 2020"
-output: 
+output:
   html_document:
-  keep_md: true
+    keep_md: true
 ---
 
 ## Setting the scene
@@ -178,15 +178,13 @@ fuzzy_filter(c(input$binomial), match = "contains") %>%
                             background = "Dodgerblue", 
                             color = "white", 
                             bold = T),
-                  cell_spec(class, "html", 
-                            color = "black")),
+                  class),
     taxonRank = if_else(taxonRank == "subspecies",
                   cell_spec(taxonRank, "html", 
                             background = "green", 
                             color = "white", 
                             bold = T),
-                  cell_spec(taxonRank, "html", 
-                            color = "black"))
+                  taxonRank)
     ) %>% 
   arrange(by_group = scientificName) %>% 
   kable("html", escape = F) %>% 
