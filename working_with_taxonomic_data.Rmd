@@ -3,6 +3,7 @@ title: "{taxadb}: what's in a name?"
 date: 2020-03-28
 output:
   github_document
+always_allow_html: true
 tags:
   - taxonomy
   - Rstats
@@ -25,7 +26,7 @@ Deciding what to do in situations like this is always tricky, but a simple solut
 
 ## Introducing {taxadb}
 
-We install the `taxadb` package and the `tidyverse` for managing the post-query manipulations of the dataframes. Lastly I have used the `kableExtra` package to present the tabulated taxonomic data.
+We load the `taxadb` package and the `tidyverse` for managing the post-query manipulations of the dataframes. I used the `kableExtra` package to format the presentation of my tabulated taxonomic data.
 
 ```{r setup, warning = FALSE, message = FALSE}
 library(taxadb)
