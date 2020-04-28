@@ -2,8 +2,7 @@
 title: "{taxadb}: what's in a name?"
 date: 2020-03-28
 output:
-  html_document:
-    keep_md: true
+  github_document
 tags:
   - taxonomy
   - Rstats
